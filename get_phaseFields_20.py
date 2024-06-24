@@ -48,7 +48,7 @@ def pullMPDS(client, qe, clas, dirname, logfile):
                                    'sg_n',
                                    'basis_noneq',
                                    'els_noneq'
-                                   #'occs_noneq'
+                                   'occs_noneq'
                                    ]}
                           )
 
@@ -68,12 +68,13 @@ def rename_crystal(atoms, ids, dirname):
     batoms.set_positions(list(df.positions.values))
     batoms.write(f'{dirname}/{formula}_{ids}_POSCAR', format='vasp')
 
-def get_references(elements, dirname, logfile='mpds_reference_log'):
+def get_references(ids, elements, dirname, logfile='mpds_reference_log'):
     os.environ['MPDS_KEY'] = 'ggBYYU0tszpYMTqLahr604WPM3Ao8o5lK3XTCV46FjyR0j2y'
     client = MPDSDataRetrieval(dtype=MPDSDataTypes.PEER_REVIEWED)
 
     _elements = set(elements.split('-'))
     classes = {1:"unary",2:"binary",3:"ternary",4:"quaternary", 5:"quinary"}
+
 
     for n, clas in classes.items():
         query_elements = combinations(_elements, n) 
@@ -84,25 +85,29 @@ def get_references(elements, dirname, logfile='mpds_reference_log'):
             except:
                 continue
             for item in answer:
-                #if is_disorder(item[0], item[-1], f'{dirname}/{logfile}'):
+                #if is_disorder(item[2], item[-1], f'{dirname}/{logfile}'):
                 #    print('disordered:', item[0])
                 #    continue
-          
+         
+                 if item[0] in ids: continue
                  crystal = MPDSDataRetrieval.compile_crystal(item, 'ase')
           
                  if not crystal:
                      print(f'Cannot build crystal')
                      continue
                  else:
+                     ids.append(item[0])
                      print('Crystal seems right', f'{item[2]}_{item[0]}')
 
                  rename_crystal(crystal, item[0], dirname)
 
 
 if __name__=="__main__":
+    ids = []
+
     elements = ['Mg', 'Al', 'Cl', 'Sn']
     elements = '-'.join(elements)
     dirname = elements
     if not os.path.exists(dirname):
         os.mkdir(dirname)
-    get_references(elements, dirname=dirname, logfile=f'mpds_references_{elements}_log')
+    get_references(ids, elements, dirname=dirname, logfile=f'mpds_references_{elements}_log')
