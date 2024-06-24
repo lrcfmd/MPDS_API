@@ -3,7 +3,7 @@ import pandas as pd
 import os, getpass
 from mpds_client import MPDSDataRetrieval, MPDSDataTypes, APIError
 
-os.environ['MPDS_KEY'] = 'ggBYYU0tszpYMTqLahr604WPM3Ao8o5lK3XTCV46FjyR0j2y'
+os.environ['MPDS_KEY'] = 'your_mpds_key'
 datatypes = [x for x in dir(MPDSDataTypes) if not x.startswith('__')]
 
 #example_props = [
@@ -47,23 +47,8 @@ myfield = {'P':['sample.material.formula']}
 
 #client = MPDSDataRetrieval(dtype=MPDSDataTypes.MACHINE_LEARNING)
 client = MPDSDataRetrieval() #dtype=MPDSDataTypes.PEER_REVIEWED)
+
 #df = client.get_dataframe({"props": "temperature for magnetic transition"}) #"Curie temperature"})
 df = client.get_dataframe({"classes": "antiferromagnet", "props":"temperature for magnetic transition"})
-df.head()
+
 df.to_csv('mpds_antiferromagnet.csv')
-sys.exit(0)
-
-#print(client.get_data({"elements": "O", "classes": "binary", "sgs": "I4/mmm"}))
-#for entry in client.get_data({"classes": "superconductor"}):
-#    print(entry, file=open('results_peer_reviewed_superconductor', 'a'))
-sys.exit(0)
-
-scs = []
-
-for card in client.get_dataframe({"props": "Curie temperature"}, fields=myfield):
-     elements = ' '.join(card[0])
-     if elements not in scs:
-          scs.append(elements)
-          print(f'elements,', file=open('mpds_peer_reviewed_magnetic.csv', 'a'))
-
-print(f"Found {len(scs)} results")

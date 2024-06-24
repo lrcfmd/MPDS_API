@@ -68,8 +68,8 @@ def rename_crystal(atoms, ids, dirname):
     batoms.set_positions(list(df.positions.values))
     batoms.write(f'{dirname}/{formula}_{ids}_POSCAR', format='vasp')
 
-def get_references(elements, dirname, logfile='mpds_reference_log'):
-    os.environ['MPDS_KEY'] = 'ggBYYU0tszpYMTqLahr604WPM3Ao8o5lK3XTCV46FjyR0j2y'
+def get_references(my_mpds_key, elements, dirname, logfile='mpds_reference_log'):
+    os.environ['MPDS_KEY'] = my_mpds_key
     client = MPDSDataRetrieval(dtype=MPDSDataTypes.PEER_REVIEWED)
 
     _elements = set(elements.split('-'))
@@ -101,9 +101,10 @@ def get_references(elements, dirname, logfile='mpds_reference_log'):
 
 
 if __name__=="__main__":
-    elements = ['Mg', 'Al', 'Cl', 'Sn']
+    my_mpds_key = 'your_mpds_api_key' # INSERT KEY
+    elements = ['Mg', 'Al', 'Cl', 'Sn'] # SELECT ELEMENTS
     elements = '-'.join(elements)
     dirname = elements
     if not os.path.exists(dirname):
         os.mkdir(dirname)
-    get_references(elements, dirname=dirname, logfile=f'mpds_references_{elements}_log')
+    get_references(my_mpds_key, elements, dirname=dirname, logfile=f'mpds_references_{elements}_log')

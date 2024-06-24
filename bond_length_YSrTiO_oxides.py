@@ -1,57 +1,83 @@
-import ase
-from ase import neighborlist
-import sys
+import os
 import pandas as pd
-import os, getpass
+from ase import neighborlist
 from mpds_client import MPDSDataRetrieval, MPDSDataTypes, APIError
 
-def calculate_neighbors(dic, mol):
-    cut = neighborlist.natural_cutoffs(mol)
-    nl = neighborlist.NeighborList(cut, self_interaction=False, bothways=True)
-    nl.update(mol)
+def calculate_neighbors(atom_dict, molecule):
+    """
+    Calculate the number of neighbors for each atom type in the molecule.
 
-    nn = {i.symbol : set() for i in mol if i.symbol in dic}
+    Parameters:
+    atom_dict (dict): Dictionary to store the neighbor counts.
+    molecule (ase.Atoms): Molecule object.
 
-    for i, n in enumerate(mol):
-        ind, _ = nl.get_neighbors(i)
-        if n.symbol in dic:
-            nn[n.symbol].add(len(ind))
+    Returns:
+    dict: Updated dictionary with neighbor counts.
+    """
+    cutoffs = neighborlist.natural_cutoffs(molecule)
+    nl = neighborlist.NeighborList(cutoffs, self_interaction=False, bothways=True)
+    nl.update(molecule)
 
-    for n, l in nn.items():
-        if n in dic: 
-            dic[n].extend(list(l))
+    neighbor_counts = {atom.symbol: set() for atom in molecule if atom.symbol in atom_dict}
+
+    for i, atom in enumerate(molecule):
+        indices, _ = nl.get_neighbors(i)
+        if atom.symbol in atom_dict:
+            neighbor_counts[atom.symbol].add(len(indices))
+
+    for symbol, counts in neighbor_counts.items():
+        if symbol in atom_dict:
+            atom_dict[symbol].extend(list(counts))
         else:
-            dic[n] = list(l)
+            atom_dict[symbol] = list(counts)
 
-    return dic
+    return atom_dict
 
-def calculate_lengths(ase_obj, elA, elB, limit=13):
+def calculate_lengths(ase_obj, element_a, element_b, limit=13):
+    """
+    Calculate the bond lengths between two elements within a specified limit.
+
+    Parameters:
+    ase_obj (ase.Atoms): ASE atoms object.
+    element_a (str): Symbol of the first element.
+    element_b (str): Symbol of the second element.
+    limit (float): Maximum distance to consider for bond lengths.
+
+    Returns:
+    list: Unique bond lengths between element_a and element_b within the limit.
+    """
     lengths = []
-    for n, atom in enumerate(ase_obj):
-        if atom.symbol == elA:
-            for m, neighbor in enumerate(ase_obj):
-                if elA == elB and m == n: continue
-                if neighbor.symbol == elB:
+    for i, atom_a in enumerate(ase_obj):
+        if atom_a.symbol == element_a:
+            for j, atom_b in enumerate(ase_obj):
+                if element_a == element_b and j == i:
+                    continue
+                if atom_b.symbol == element_b:
                     try:
-                        dist = round(ase_obj.get_distance(n, m), 2) # NB occurrence <-> rounding
-                    except: continue
-                    if dist < limit:
-                        lengths.append(dist)
+                        distance = round(ase_obj.get_distance(i, j), 2)
+                    except Exception:
+                        continue
+                    if distance < limit:
+                        lengths.append(distance)
     return list(set(lengths))
 
-os.environ['MPDS_KEY'] = 'ggBYYU0tszpYMTqLahr604WPM3Ao8o5lK3XTCV46FjyR0j2y'
-datatypes = [x for x in dir(MPDSDataTypes) if not x.startswith('__')]
+# Set MPDS API key
+os.environ['MPDS_KEY'] = 'your_mpds_key'  # INSERT_KEY
 
+# Initialize MPDS client
 client = MPDSDataRetrieval(dtype=MPDSDataTypes.PEER_REVIEWED)
 
-sets = ["Y-Sr-O", "Ti-Sr-O", "Y-Ti-O", "Y-O", "Sr-O","Ti-O" ]
-dfrm = pd.DataFrame(columns=['O-O'])
-lengths = []
+# Define sets of elements to search for
+element_sets = ["Y-Sr-O", "Ti-Sr-O", "Y-Ti-O", "Y-O", "Sr-O", "Ti-O"]
+dataframe = pd.DataFrame(columns=['O-O'])
+all_lengths = []
 
-for s in sets:
-    answer = client.get_data(
-        {"elements": s, "props": "atomic structure", "classes": "non-disordered"},
-        fields={'S':[
+# Retrieve data and calculate bond lengths
+for elements in element_sets:
+    try:
+        response = client.get_data(
+            {"elements": elements, "props": "atomic structure", "classes": "non-disordered"},
+            fields={'S': [
                 'phase_id',
                 'entry',
                 'chemical_formula',
@@ -59,17 +85,22 @@ for s in sets:
                 'sg_n',
                 'basis_noneq',
                 'els_noneq'
-                ]}
-    )
-    for item in answer:
+            ]}
+        )
+    except APIError as e:
+        print(f"API Error: {e}")
+        continue
+
+    for item in response:
         crystal = MPDSDataRetrieval.compile_crystal(item, 'ase')
-        if not crystal: continue
+        if not crystal:
+            continue
 
-        lengths.extend(calculate_lengths(crystal, 'O', 'O'))
+        all_lengths.extend(calculate_lengths(crystal, 'O', 'O'))
 
-dfrm['O-O'] = sorted(lengths)
-dfrm.to_csv(f'SrTiOY_bondlenghts_perN/sortedhO-O.csv', index=None)
-dfrm['occurrence '+ 'O-O' ] = dfrm.groupby('O-O')['O-O'].transform('count')
-dfrm.drop_duplicates('O-O', inplace=True)
-
-dfrm.to_csv(f'SrTiOY_bondlenghts_perN/bondLengthO-O.csv', index=None)
+# Process and save results
+dataframe['O-O'] = sorted(all_lengths)
+dataframe.to_csv('SrTiOY_bondlengths_perN/sorted_O-O.csv', index=False)
+dataframe['occurrence O-O'] = dataframe.groupby('O-O')['O-O'].transform('count')
+dataframe.drop_duplicates('O-O', inplace=True)
+dataframe.to_csv('SrTiOY_bondlengths_perN/bondLength_O-O.csv', index=False)

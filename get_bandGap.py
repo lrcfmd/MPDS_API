@@ -3,7 +3,7 @@ import pandas as pd
 import os, getpass
 from mpds_client import MPDSDataRetrieval, MPDSDataTypes, APIError
 
-os.environ['MPDS_KEY'] = 'ggBYYU0tszpYMTqLahr604WPM3Ao8o5lK3XTCV46FjyR0j2y'
+os.environ['MPDS_KEY'] = 'your_mpds_key'
 datatypes = [x for x in dir(MPDSDataTypes) if not x.startswith('__')]
 example_props = [
 #'electrical resistance',
